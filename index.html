@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozy Flow Timer</title>
+    <!-- Cozy Coffee Cup Icon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>" />
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React, ReactDOM, and Babel to compile JSX -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // Custom Icon Component to replace lucide-react imports without a build step
+        const Icon = ({ name, size = 24, className = "", strokeWidth = 2, fill = "none" }) => {
+            const paths = {
+                play: <path d="M5 3l14 9-14 9V3z" fill={fill !== "none" ? "currentColor" : "none"} stroke={fill !== "none" ? "none" : "currentColor"} />,
+                pause: <><rect x="6" y="4" width="4" height="16" fill={fill !== "none" ? "currentColor" : "none"} stroke={fill !== "none" ? "none" : "currentColor"}/><rect x="14" y="4" width="4" height="16" fill={fill !== "none" ? "currentColor" : "none"} stroke={fill !== "none" ? "none" : "currentColor"}/></>,
+                rotateCcw: <><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>,
+                flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>,
+                coffee: <><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></>,
+                moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>,
+                check: <polyline points="20 6 9 17 4 12"/>,
+                timerIcon: <><circle cx="12" cy="14" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="12" y1="14" x2="15.5" y2="10.5"/></>,
+                barChart2: <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+                trash2: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
+                calendar: <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+                save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>
+            };
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={fill !== "none" ? "none" : "currentColor"} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {paths[name]}
+                </svg>
+            );
+        };
+
+        const hexToRgb = (hex) => {
+            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        };
+
+        const playCozyChime = () => {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                const now = ctx.currentTime;
+                const playNote = (freq, startTime, duration) => {
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gainNode.gain.setValueAtTime(0, startTime);
+                    gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                };
+                playNote(523.25, now, 2.5);
+                playNote(659.25, now + 0.15, 2.5);
+                playNote(783.99, now + 0.3, 2.5);
+                playNote(1046.50, now + 0.45, 3.0);
+            } catch (err) {
+                console.error("Audio playback failed", err);
+            }
+        };
+
+        const THEMES = {
+            peach: { id: 'peach', name: 'Peach', bgMain: '#FAF0E6', bgCard: '#FFFFFF', primary: '#F4A261', ringBg: '#F9E5D3', textDark: '#5D4037', textLight: '#A1887F', shadow: 'rgba(244, 162, 97, 0.25)' },
+            mint: { id: 'mint', name: 'Mint', bgMain: '#F1F8F5', bgCard: '#FFFFFF', primary: '#81B29A', ringBg: '#DAEBE3', textDark: '#2F3E46', textLight: '#84A59D', shadow: 'rgba(129, 178, 154, 0.25)' },
+            lavender: { id: 'lavender', name: 'Lavender', bgMain: '#F4F0FA', bgCard: '#FFFFFF', primary: '#A084B6', ringBg: '#E9E2F0', textDark: '#3A2E45', textLight: '#8D7B9C', shadow: 'rgba(160, 132, 182, 0.25)' },
+            sand: { id: 'sand', name: 'Sand', bgMain: '#FDFBF7', bgCard: '#FFFFFF', primary: '#D4A373', ringBg: '#F3E5D8', textDark: '#4A3B2C', textLight: '#A39171', shadow: 'rgba(212, 163, 115, 0.25)' }
+        };
+
+        const MODES_CONFIG = {
+            pomodoro: { id: 'pomodoro', name: 'Focus', icon: 'flame' },
+            shortBreak: { id: 'shortBreak', name: 'Short Break', icon: 'coffee' },
+            longBreak: { id: 'longBreak', name: 'Long Break', icon: 'moon' }
+        };
+
+        const ParticleNetwork = ({ theme }) => {
+            const canvasRef = useRef(null);
+            const particles = useRef([]);
+            const mouse = useRef({ x: -1000, y: -1000 });
+            const themeRgb = hexToRgb(theme.primary);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let animationFrameId;
+
+                const resize = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    initParticles();
+                };
+
+                const initParticles = () => {
+                    particles.current = [];
+                    const numParticles = Math.floor((window.innerWidth * window.innerHeight) / 10000);
+                    for (let i = 0; i < numParticles; i++) {
+                        const baseVx = (Math.random() - 0.5) * 0.8;
+                        const baseVy = (Math.random() - 0.5) * 0.8;
+                        particles.current.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            vx: baseVx,
+                            vy: baseVy,
+                            baseVx: baseVx,
+                            baseVy: baseVy,
+                        });
+                    }
+                };
+
+                const draw = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const repulsionRadius = 180;
+
+                    for (let i = 0; i < particles.current.length; i++) {
+                        const p = particles.current[i];
+                        const dx = p.x - mouse.current.x;
+                        const dy = p.y - mouse.current.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < repulsionRadius) {
+                            const force = (repulsionRadius - dist) / repulsionRadius;
+                            p.vx += (dx / dist) * force * 1.2;
+                            p.vy += (dy / dist) * force * 1.2;
+                        }
+
+                        p.vx *= 0.94;
+                        p.vy *= 0.94;
+                        p.vx += p.baseVx * 0.06;
+                        p.vy += p.baseVy * 0.06;
+                        p.x += p.vx;
+                        p.y += p.vy;
+
+                        if (p.x < 0) p.x = canvas.width;
+                        if (p.x > canvas.width) p.x = 0;
+                        if (p.y < 0) p.y = canvas.height;
+                        if (p.y > canvas.height) p.y = 0;
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, 0.95)`;
+                        ctx.fill();
+
+                        for (let j = i + 1; j < particles.current.length; j++) {
+                            const p2 = particles.current[j];
+                            const cdx = p.x - p2.x;
+                            const cdy = p.y - p2.y;
+                            const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+
+                            if (cDist < 130) {
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                const opacity = 1 - (cDist / 130);
+                                ctx.strokeStyle = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, ${opacity * 0.85})`;
+                                ctx.lineWidth = 2.5;
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    animationFrameId = requestAnimationFrame(draw);
+                };
+
+                const handleMouseMove = (e) => { mouse.current = { x: e.clientX, y: e.clientY }; };
+                const handleMouseLeave = () => { mouse.current = { x: -1000, y: -1000 }; };
+
+                window.addEventListener('resize', resize);
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseleave', handleMouseLeave);
+                
+                resize();
+                draw();
+
+                return () => {
+                    window.removeEventListener('resize', resize);
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseleave', handleMouseLeave);
+                    cancelAnimationFrame(animationFrameId);
+                };
+            }, [themeRgb.r, themeRgb.g, themeRgb.b]);
+
+            return (
+                <canvas 
+                    ref={canvasRef} 
+                    className="fixed inset-0 pointer-events-none transition-colors duration-1000 ease-in-out" 
+                    style={{ zIndex: 0, backgroundColor: theme.bgMain }}
+                />
+            );
+        };
+
+        const App = () => {
+            const [activeThemeId, setActiveThemeId] = useState('peach');
+            const [activeMode, setActiveMode] = useState('pomodoro');
+            const [isActive, setIsActive] = useState(false);
+            const [currentView, setCurrentView] = useState('timer');
+            const [cycleCount, setCycleCount] = useState(0); 
+            const [showClearConfirm, setShowClearConfirm] = useState(false);
+            
+            const [sessions, setSessions] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('cozyPomodoroSessions');
+                    return saved ? JSON.parse(saved) : [];
+                } catch (e) {
+                    return [];
+                }
+            });
+
+            const [durations, setDurations] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 });
+            const [timeLeft, setTimeLeft] = useState(durations.pomodoro * 60);
+            const [isEditing, setIsEditing] = useState(false);
+            const [editHours, setEditHours] = useState('');
+            const [editMins, setEditMins] = useState('');
+            const hoursInputRef = useRef(null);
+
+            const theme = THEMES[activeThemeId];
+            const currentModeInfo = MODES_CONFIG[activeMode];
+            const currentTotalSeconds = durations[activeMode] * 60;
+
+            useEffect(() => {
+                localStorage.setItem('cozyPomodoroSessions', JSON.stringify(sessions));
+            }, [sessions]);
+
+            const switchMode = useCallback((modeId) => {
+                setActiveMode(modeId);
+                setIsActive(false);
+                setTimeLeft(durations[modeId] * 60);
+                setIsEditing(false);
+            }, [durations]);
+
+            const handleTimerComplete = useCallback(() => {
+                playCozyChime();
+                const newSession = { id: Date.now().toString(), modeId: activeMode, duration: durations[activeMode], timestamp: Date.now() };
+                setSessions(prev => [newSession, ...prev]);
+                
+                if (activeMode === 'pomodoro') {
+                    const newCycleCount = cycleCount + 1;
+                    if (newCycleCount >= 4) {
+                        setCycleCount(4); 
+                        switchMode('longBreak');
+                    } else {
+                        setCycleCount(newCycleCount);
+                        switchMode('shortBreak');
+                    }
+                } else if (activeMode === 'longBreak') {
+                    setCycleCount(0);
+                    switchMode('pomodoro');
+                } else if (activeMode === 'shortBreak') {
+                    switchMode('pomodoro');
+                }
+            }, [activeMode, cycleCount, switchMode, durations]);
+
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) {
+                    interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+                } else if (isActive && timeLeft === 0) {
+                    handleTimerComplete();
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft, handleTimerComplete]);
+
+            useEffect(() => {
+                if (!isEditing && currentView === 'timer') {
+                    const h = Math.floor(timeLeft / 3600);
+                    const m = Math.floor((timeLeft % 3600) / 60).toString().padStart(2, '0');
+                    const s = (timeLeft % 60).toString().padStart(2, '0');
+                    const timeString = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+                    document.title = isActive ? `${timeString} - ${currentModeInfo.name}` : 'Cozy Pomodoro';
+                } else {
+                    document.title = 'Cozy Pomodoro';
+                }
+            }, [timeLeft, isActive, currentModeInfo.name, isEditing, currentView]);
+
+            const toggleTimer = () => {
+                if (isEditing) handleEditSubmit(); 
+                setIsActive(!isActive);
+            };
+
+            const resetTimer = () => {
+                setIsActive(false);
+                setIsEditing(false);
+                setTimeLeft(durations[activeMode] * 60);
+            };
+
+            const handleTimeClick = () => {
+                setIsActive(false);
+                const currentMins = durations[activeMode];
+                setEditHours(Math.floor(currentMins / 60).toString());
+                setEditMins((currentMins % 60).toString());
+                setIsEditing(true);
+                setTimeout(() => hoursInputRef.current?.focus(), 50);
+            };
+
+            const handleEditSubmit = () => {
+                let h = parseInt(editHours, 10);
+                let m = parseInt(editMins, 10);
+                if (isNaN(h)) h = 0;
+                if (isNaN(m)) m = 0;
+                let totalNewMins = (h * 60) + m;
+                if (totalNewMins < 1) totalNewMins = 1; 
+                if (totalNewMins > 600) totalNewMins = 600; 
+                const newDurations = { ...durations, [activeMode]: totalNewMins };
+                setDurations(newDurations);
+                setTimeLeft(totalNewMins * 60);
+                setIsEditing(false);
+            };
+
+            const formatTimeDisplay = (seconds) => {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            const formatStatsDate = (timestamp) => {
+                return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            const clearStats = () => {
+                setSessions([]);
+                setShowClearConfirm(false);
+            };
+
+            const ringRadius = 140;
+            const ringCircumference = 2 * Math.PI * ringRadius;
+            const progress = 1 - (timeLeft / currentTotalSeconds);
+            const strokeDashoffset = progress * ringCircumference;
+            const totalFocusMinutes = sessions.filter(s => s.modeId === 'pomodoro').reduce((acc, curr) => acc + curr.duration, 0);
+            const totalFocusHours = Math.floor(totalFocusMinutes / 60);
+            const remainingFocusMins = totalFocusMinutes % 60;
+
+            return (
+                <>
+                    <style>{`
+                        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+                        :root { font-family: 'Nunito', sans-serif; }
+                        @keyframes cozyBreathe {
+                            0% { transform: scale(1); filter: drop-shadow(0 0 10px var(--theme-shadow)); }
+                            50% { transform: scale(1.02); filter: drop-shadow(0 0 25px var(--theme-shadow)); }
+                            100% { transform: scale(1); filter: drop-shadow(0 0 10px var(--theme-shadow)); }
+                        }
+                        .animate-breathe-ring { animation: cozyBreathe 4s ease-in-out infinite; }
+                        .cozy-shadow { box-shadow: 0 20px 40px -15px var(--theme-shadow); }
+                        .cozy-shadow-inner { box-shadow: inset 0 2px 10px rgba(0,0,0,0.05); }
+                        circle { transition: stroke-dashoffset 1s linear, stroke 0.5s ease; }
+                        input[type="number"]::-webkit-inner-spin-button, 
+                        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+                        input[type="number"] { -moz-appearance: textfield; }
+                        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--theme-text-light); border-radius: 10px; opacity: 0.5; }
+                        .animate-in { animation: fadeIn 0.3s ease-out; }
+                        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+                    `}</style>
+
+                    <ParticleNetwork theme={theme} />
+
+                    <div 
+                        className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 transition-colors duration-1000 ease-in-out relative z-10"
+                        style={{ backgroundColor: 'transparent', color: theme.textDark, '--theme-shadow': theme.shadow, '--theme-text-light': theme.textLight }}
+                    >
+                        <div 
+                            className="relative bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-lg transition-all duration-700 ease-in-out cozy-shadow flex flex-col items-center min-h-[680px]"
+                            style={{ backgroundColor: theme.bgCard }}
+                        >
+                            <div className="w-full flex justify-between items-center mb-6">
+                                <h1 className="text-2xl font-black tracking-tight opacity-90 mx-auto">
+                                    {currentView === 'timer' ? 'Cozy Flow' : 'Your Journey'}
+                               </h1>
+                            </div>
+                                
+                            <div className="flex-1 w-full flex flex-col items-center">
+                                
+                                {currentView === 'timer' && (
+                                    <div className="flex flex-col items-center w-full animate-in">
+                                        <div className="flex bg-black/5 p-1.5 rounded-full cozy-shadow-inner mb-6 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                                            {Object.values(MODES_CONFIG).map((mode) => {
+                                                const isSelected = activeMode === mode.id;
+                                                return (
+                                                    <button
+                                                        key={mode.id}
+                                                        onClick={() => switchMode(mode.id)}
+                                                        className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 flex-shrink-0 ${
+                                                            isSelected ? 'shadow-sm bg-white scale-105' : 'hover:bg-black/5 opacity-60 hover:opacity-100'
+                                                        }`}
+                                                        style={{ color: isSelected ? theme.primary : theme.textDark }}
+                                                    >
+                                                        <Icon name={mode.icon} size={18} strokeWidth={isSelected ? 3 : 2} />
+                                                        <span className="hidden sm:inline-block">{mode.name}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="flex items-center gap-3 mb-8" title="Pomodoro Cycle Progress">
+                                            {[1, 2, 3, 4].map((step) => (
+                                                <div 
+                                                    key={step}
+                                                    className="w-3 h-3 rounded-full transition-all duration-500 shadow-inner"
+                                                    style={{ 
+                                                        backgroundColor: step <= cycleCount ? theme.primary : theme.ringBg,
+                                                        transform: step <= cycleCount ? 'scale(1.2)' : 'scale(1)',
+                                                        opacity: step <= cycleCount ? 1 : 0.4
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        <div className="relative flex justify-center items-center mb-10 w-[280px] h-[280px] sm:w-[320px] sm:h-[320px]">
+                                            <svg className={`absolute inset-0 w-full h-full -rotate-90 ${isActive ? 'animate-breathe-ring' : ''}`} viewBox="0 0 320 320">
+                                                <circle cx="160" cy="160" r={ringRadius} fill="none" stroke={theme.ringBg} strokeWidth="12" strokeLinecap="round" />
+                                                <circle cx="160" cy="160" r={ringRadius} fill="none" stroke={theme.primary} strokeWidth="12" strokeLinecap="round" strokeDasharray={ringCircumference} strokeDashoffset={strokeDashoffset} />
+                                            </svg>
+                                            
+                                            <div className="absolute flex flex-col items-center justify-center z-10 w-full" style={{ color: theme.textDark }}>
+                                                {isEditing ? (
+                                                    <div className="flex flex-col items-center justify-center gap-4 animate-in">
+                                                        <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                                            <div className="flex items-baseline">
+                                                                <input ref={hoursInputRef} type="number" min="0" max="10" value={editHours} onChange={(e) => setEditHours(e.target.value)} className="w-16 sm:w-20 text-center bg-transparent outline-none text-5xl sm:text-6xl font-black tracking-tighter tabular-nums leading-none border-b-4 border-dashed" style={{ borderColor: theme.primary }} placeholder="0" />
+                                                                <span className="text-xl font-bold ml-1 opacity-50">h</span>
+                                                            </div>
+                                                            <span className="text-3xl font-black opacity-30">:</span>
+                                                            <div className="flex items-baseline">
+                                                                <input type="number" min="0" max="59" value={editMins} onChange={(e) => setEditMins(e.target.value)} className="w-16 sm:w-20 text-center bg-transparent outline-none text-5xl sm:text-6xl font-black tracking-tighter tabular-nums leading-none border-b-4 border-dashed" style={{ borderColor: theme.primary }} placeholder="0" />
+                                                                <span className="text-xl font-bold ml-1 opacity-50">m</span>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={handleEditSubmit} className="flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-bold text-sm shadow-md hover:scale-105 active:scale-95 transition-transform" style={{ backgroundColor: theme.primary }}>
+                                                            <Icon name="save" size={16} /> Save Time
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button onClick={handleTimeClick} className={`font-black tracking-tighter tabular-nums leading-none hover:scale-105 transition-transform duration-200 cursor-pointer focus:outline-none rounded-xl hover:bg-black/5 p-2 ${timeLeft >= 3600 ? 'text-5xl sm:text-6xl' : 'text-6xl sm:text-7xl'}`}>
+                                                        {formatTimeDisplay(timeLeft)}
+                                                    </button>
+                                                )}
+                                                
+                                                {!isEditing && (
+                                                    <div className="mt-3 text-sm font-bold uppercase tracking-widest opacity-60 flex items-center gap-2">
+                                                        {currentModeInfo.name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-center space-x-6 w-full mb-6">
+                                            <div className="w-14 sm:w-16"></div>
+                                            <button onClick={toggleTimer} className="group relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none" style={{ backgroundColor: theme.primary, color: theme.bgCard, boxShadow: `0 15px 30px -10px ${theme.shadow}` }}>
+                                                <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-15 transition-opacity"></div>
+                                                {isActive ? <Icon name="pause" fill="currentColor" size={36} className="ml-0.5" /> : <Icon name="play" fill="currentColor" size={36} className="ml-2" />}
+                                            </button>
+                                            <button onClick={resetTimer} className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/5 hover:bg-black/10 active:scale-95 transition-all duration-300 focus:outline-none text-current opacity-60 hover:opacity-100">
+                                                <Icon name="rotateCcw" size={22} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-2 h-6 flex items-center" style={{ color: theme.textLight }}>
+                                            <p className="font-bold text-sm tracking-widest uppercase">
+                                                {isEditing ? "Set your duration" : (isActive ? (activeMode === 'pomodoro' ? "Deep focus..." : "Relaxing...") : "Ready when you are.")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {currentView === 'stats' && (
+                                    <div className="flex flex-col items-center w-full h-full animate-in">
+                                        <div className="w-full p-6 rounded-[2rem] mb-6 flex flex-col items-center justify-center text-center cozy-shadow-inner" style={{ backgroundColor: theme.ringBg }}>
+                                            <span className="text-sm font-bold uppercase tracking-widest mb-2 opacity-70">Total Focus Time</span>
+                                            <div className="text-4xl font-black tracking-tight" style={{ color: theme.primary }}>
+                                                {totalFocusHours > 0 && <span>{totalFocusHours}<span className="text-xl opacity-70 ml-1 mr-2">h</span></span>}
+                                                <span>{remainingFocusMins}<span className="text-xl opacity-70 ml-1">m</span></span>
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full flex justify-between items-end mb-4 px-2">
+                                            <h3 className="font-bold text-lg">Recent Sessions</h3>
+                                            {sessions.length > 0 && !showClearConfirm && (
+                                                <button onClick={() => setShowClearConfirm(true)} className="text-sm opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                    <Icon name="trash2" size={14} /> Clear
+                                                </button>
+                                            )}
+                                            {showClearConfirm && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <span className="opacity-70">Sure?</span>
+                                                    <button onClick={clearStats} className="font-bold text-red-500 hover:text-red-600 transition-colors">Yes</button>
+                                                    <button onClick={() => setShowClearConfirm(false)} className="font-bold opacity-50 hover:opacity-100 transition-opacity">No</button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="w-full flex-1 min-h-[300px] max-h-[350px] overflow-y-auto custom-scrollbar pr-2 pb-4 space-y-3">
+                                            {sessions.length === 0 ? (
+                                                <div className="w-full h-full flex flex-col items-center justify-center opacity-40 mt-10">
+                                                    <Icon name="calendar" size={48} className="mb-4" />
+                                                    <p className="font-bold text-center">No sessions yet.<br/>Time to get cozy and focus!</p>
+                                                </div>
+                                            ) : (
+                                                sessions.map((session) => {
+                                                    const mode = MODES_CONFIG[session.modeId];
+                                                    const sessH = Math.floor(session.duration / 60);
+                                                    const sessM = session.duration % 60;
+                                                    const durationStr = sessH > 0 ? `${sessH}h ${sessM > 0 ? sessM + 'm' : ''}` : `${sessM}m`;
+
+                                                    return (
+                                                        <div key={session.id} className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/5 hover:bg-black/10 transition-colors">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 rounded-full bg-white" style={{ color: theme.primary }}>
+                                                                    <Icon name={mode.icon} size={18} strokeWidth={2.5} />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-sm">{mode.name}</span>
+                                                                    <span className="text-xs opacity-60 font-semibold">{formatStatsDate(session.timestamp)}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="font-black">{durationStr}</div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="w-full mt-auto pt-6 border-t-2 border-black/5 flex flex-col items-center gap-4">
+                                {currentView === 'timer' && (
+                                    <div className="flex gap-3 p-2 bg-black/5 rounded-full cozy-shadow-inner mb-2">
+                                        {Object.values(THEMES).map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => setActiveThemeId(t.id)}
+                                                className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-sm"
+                                                style={{ backgroundColor: t.primary }}
+                                                title={`Switch to ${t.name} theme`}
+                                            >
+                                                {activeThemeId === t.id && <Icon name="check" size={14} className="text-white" strokeWidth={3} />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="flex bg-black/5 rounded-full p-1 w-full max-w-[200px] justify-between relative cozy-shadow-inner">
+                                    <div className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-full transition-all duration-300 shadow-sm" style={{ left: currentView === 'timer' ? '4px' : 'calc(50%)' }}></div>
+                                    <button onClick={() => setCurrentView('timer')} className={`relative z-10 w-1/2 py-2 flex justify-center items-center gap-2 font-bold text-sm transition-colors duration-300 ${currentView === 'timer' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'timer' ? theme.primary : theme.textDark }}>
+                                        <Icon name="timerIcon" size={18} /> <span className="hidden sm:inline">Timer</span>
+                                    </button>
+                                    <button onClick={() => setCurrentView('stats')} className={`relative z-10 w-1/2 py-2 flex justify-center items-center gap-2 font-bold text-sm transition-colors duration-300 ${currentView === 'stats' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'stats' ? theme.primary : theme.textDark }}>
+                                        <Icon name="barChart2" size={18} /> <span className="hidden sm:inline">Stats</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
