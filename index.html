@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cozy Flow Timer</title>
+    <title>Pomozy</title>
     <!-- Cozy Coffee Cup Icon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>" />
     
@@ -21,7 +21,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
 
-        // Custom Icon Component to replace lucide-react imports without a build step
+        // --- CUSTOM ICONS ---
         const Icon = ({ name, size = 24, className = "", strokeWidth = 2, fill = "none" }) => {
             const paths = {
                 play: <path d="M5 3l14 9-14 9V3z" fill={fill !== "none" ? "currentColor" : "none"} stroke={fill !== "none" ? "none" : "currentColor"} />,
@@ -35,7 +35,10 @@
                 barChart2: <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
                 trash2: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
                 calendar: <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
-                save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>
+                save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>,
+                settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+                bell: <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>,
+                stopSquare: <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
             };
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={fill !== "none" ? "none" : "currentColor"} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -44,42 +47,126 @@
             );
         };
 
-        const hexToRgb = (hex) => {
-            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-            hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : { r: 0, g: 0, b: 0 };
-        };
+        // --- WEB AUDIO SYNTHESIZER ---
+        // Generates completely dynamic, looping ringtones without external files
+        const AudioEngine = {
+            ctx: null,
+            intervalId: null,
+            isPlaying: false,
+            activeNodes: [], // Track continuous sounds for graceful stopping
+            
+            init() {
+                if (!this.ctx) {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) this.ctx = new AC();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
 
-        const playCozyChime = () => {
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                const ctx = new AudioContext();
-                const now = ctx.currentTime;
-                const playNote = (freq, startTime, duration) => {
-                    const osc = ctx.createOscillator();
-                    const gainNode = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, startTime);
-                    gainNode.gain.setValueAtTime(0, startTime);
-                    gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.1);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-                    osc.connect(gainNode);
-                    gainNode.connect(ctx.destination);
-                    osc.start(startTime);
-                    osc.stop(startTime + duration);
+            start(soundId) {
+                this.stop(); // Stop any currently playing alarm
+                this.init();
+                if (!this.ctx) return;
+                this.isPlaying = true;
+                this.activeNodes = [];
+
+                const now = this.ctx.currentTime;
+
+                if (soundId === 'zen') {
+                    // Continuous Resonating Singing Bowl (432Hz with a slight 435Hz beat)
+                    const osc1 = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc1.type = 'sine';
+                    osc1.frequency.value = 432;
+                    
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 435; // Creates a continuous pulsing/beating effect
+
+                    // Soft fade in for the continuous drone
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.4, now + 2);
+
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc1.start(now);
+                    osc2.start(now);
+
+                    this.activeNodes.push({ osc1, osc2, gain });
+                    return; // Skip the interval logic for this continuous sound
+                }
+
+                const playPattern = () => {
+                    if (!this.isPlaying) return;
+                    const now = this.ctx.currentTime;
+                    
+                    if (soundId === 'cozy') {
+                        // Relaxing C-Major Arpeggio
+                        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                            const osc = this.ctx.createOscillator();
+                            const gain = this.ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.value = freq;
+                            const startTime = now + (i * 0.15);
+                            gain.gain.setValueAtTime(0, startTime);
+                            gain.gain.linearRampToValueAtTime(0.3, startTime + 0.1);
+                            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 2.5);
+                            osc.connect(gain);
+                            gain.connect(this.ctx.destination);
+                            osc.start(startTime);
+                            osc.stop(startTime + 2.5);
+                        });
+                    } else if (soundId === 'digital') {
+                        // Urgent 3-Beep Digital Alarm
+                        [0, 0.15, 0.3].forEach(offset => {
+                            const startTime = now + offset;
+                            const osc = this.ctx.createOscillator();
+                            const gain = this.ctx.createGain();
+                            osc.type = 'square';
+                            osc.frequency.value = 800;
+                            gain.gain.setValueAtTime(0, startTime);
+                            gain.gain.setValueAtTime(0.1, startTime + 0.01);
+                            gain.gain.setValueAtTime(0, startTime + 0.1);
+                            osc.connect(gain);
+                            gain.connect(this.ctx.destination);
+                            osc.start(startTime);
+                            osc.stop(startTime + 0.15);
+                        });
+                    }
                 };
-                playNote(523.25, now, 2.5);
-                playNote(659.25, now + 0.15, 2.5);
-                playNote(783.99, now + 0.3, 2.5);
-                playNote(1046.50, now + 0.45, 3.0);
-            } catch (err) {
-                console.error("Audio playback failed", err);
+                
+                // Play immediately, then set interval based on alarm type
+                playPattern();
+                const intervalTime = soundId === 'digital' ? 1000 : 3000;
+                this.intervalId = setInterval(playPattern, intervalTime);
+            },
+
+            stop() {
+                this.isPlaying = false;
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                }
+                
+                // Gracefully fade out continuous sounds to prevent popping
+                if (this.activeNodes.length > 0 && this.ctx) {
+                    const now = this.ctx.currentTime;
+                    this.activeNodes.forEach(({ osc1, osc2, gain }) => {
+                        gain.gain.cancelScheduledValues(now);
+                        gain.gain.setValueAtTime(gain.gain.value, now);
+                        gain.gain.linearRampToValueAtTime(0.001, now + 1); // 1-second fade out
+                        
+                        setTimeout(() => {
+                            try { osc1.stop(); osc2.stop(); } catch (e) {}
+                        }, 1000);
+                    });
+                    this.activeNodes = [];
+                }
             }
         };
 
@@ -96,116 +183,240 @@
             longBreak: { id: 'longBreak', name: 'Long Break', icon: 'moon' }
         };
 
-        const ParticleNetwork = ({ theme }) => {
+        const ALARM_TYPES = [
+            { id: 'cozy', name: 'Cozy Chime', desc: 'Relaxing C-Major Arpeggio' },
+            { id: 'zen', name: 'Zen Bowl', desc: 'Continuous 432Hz Resonance' },
+            { id: 'digital', name: 'Digital Beep', desc: 'Classic 3-Beep Alarm' }
+        ];
+
+        // Advanced Liquid Glass WebGL Shader Background with Mouse Interaction
+        const LiquidBackground = ({ theme, isRing = false }) => {
             const canvasRef = useRef(null);
-            const particles = useRef([]);
-            const mouse = useRef({ x: -1000, y: -1000 });
-            const themeRgb = hexToRgb(theme.primary);
 
             useEffect(() => {
                 const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                let animationFrameId;
+                const gl = canvas.getContext('webgl');
+                if (!gl) return;
+
+                let targetMouse = { x: 0, y: 0 };
+                let currentMouse = { x: 0, y: 0 };
+
+                const handleMouseMove = (e) => {
+                    if (isRing) return; // Disable mouse interaction for the timer ring
+                    
+                    targetMouse.x = e.clientX * window.devicePixelRatio;
+                    targetMouse.y = (window.innerHeight - e.clientY) * window.devicePixelRatio;
+                };
+
+                const handleTouchMove = (e) => {
+                    if (e.touches.length > 0) {
+                        if (isRing) return; // Disable touch interaction for the timer ring
+                        
+                        const touch = e.touches[0];
+                        targetMouse.x = touch.clientX * window.devicePixelRatio;
+                        targetMouse.y = (window.innerHeight - touch.clientY) * window.devicePixelRatio;
+                    }
+                };
+
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('touchmove', handleTouchMove);
 
                 const resize = () => {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    initParticles();
-                };
-
-                const initParticles = () => {
-                    particles.current = [];
-                    const numParticles = Math.floor((window.innerWidth * window.innerHeight) / 10000);
-                    for (let i = 0; i < numParticles; i++) {
-                        const baseVx = (Math.random() - 0.5) * 0.8;
-                        const baseVy = (Math.random() - 0.5) * 0.8;
-                        particles.current.push({
-                            x: Math.random() * canvas.width,
-                            y: Math.random() * canvas.height,
-                            vx: baseVx,
-                            vy: baseVy,
-                            baseVx: baseVx,
-                            baseVy: baseVy,
-                        });
+                    let cw = window.innerWidth;
+                    let ch = window.innerHeight;
+                    if (isRing && canvas.parentElement) {
+                        cw = canvas.parentElement.clientWidth || 320;
+                        ch = canvas.parentElement.clientHeight || 320;
                     }
+                    canvas.width = cw * window.devicePixelRatio;
+                    canvas.height = ch * window.devicePixelRatio;
+                    gl.viewport(0, 0, canvas.width, canvas.height);
+                    
+                    // Move the initial mouse target way off-screen for the ring so it doesn't dent the fluid
+                    targetMouse = isRing ? { x: -9999, y: -9999 } : { x: canvas.width / 2, y: canvas.height / 2 };
+                    currentMouse = { ...targetMouse };
                 };
-
-                const draw = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    const repulsionRadius = 180;
-
-                    for (let i = 0; i < particles.current.length; i++) {
-                        const p = particles.current[i];
-                        const dx = p.x - mouse.current.x;
-                        const dy = p.y - mouse.current.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-
-                        if (dist < repulsionRadius) {
-                            const force = (repulsionRadius - dist) / repulsionRadius;
-                            p.vx += (dx / dist) * force * 1.2;
-                            p.vy += (dy / dist) * force * 1.2;
-                        }
-
-                        p.vx *= 0.94;
-                        p.vy *= 0.94;
-                        p.vx += p.baseVx * 0.06;
-                        p.vy += p.baseVy * 0.06;
-                        p.x += p.vx;
-                        p.y += p.vy;
-
-                        if (p.x < 0) p.x = canvas.width;
-                        if (p.x > canvas.width) p.x = 0;
-                        if (p.y < 0) p.y = canvas.height;
-                        if (p.y > canvas.height) p.y = 0;
-
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-                        ctx.fillStyle = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, 0.95)`;
-                        ctx.fill();
-
-                        for (let j = i + 1; j < particles.current.length; j++) {
-                            const p2 = particles.current[j];
-                            const cdx = p.x - p2.x;
-                            const cdy = p.y - p2.y;
-                            const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
-
-                            if (cDist < 130) {
-                                ctx.beginPath();
-                                ctx.moveTo(p.x, p.y);
-                                ctx.lineTo(p2.x, p2.y);
-                                const opacity = 1 - (cDist / 130);
-                                ctx.strokeStyle = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, ${opacity * 0.85})`;
-                                ctx.lineWidth = 2.5;
-                                ctx.stroke();
-                            }
-                        }
-                    }
-                    animationFrameId = requestAnimationFrame(draw);
-                };
-
-                const handleMouseMove = (e) => { mouse.current = { x: e.clientX, y: e.clientY }; };
-                const handleMouseLeave = () => { mouse.current = { x: -1000, y: -1000 }; };
-
                 window.addEventListener('resize', resize);
-                window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseleave', handleMouseLeave);
-                
                 resize();
-                draw();
+
+                const vsSource = `attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+                
+                const fsSource = `
+                    precision highp float;
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    uniform vec2 u_mouse;
+                    uniform vec3 u_baseColor;
+                    uniform vec3 u_waveColor;
+
+                    float hash(float n) { return fract(sin(n) * 1e4); }
+                    float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+
+                    float noise(vec2 x) {
+                        vec2 i = floor(x);
+                        vec2 f = fract(x);
+                        float a = hash(i);
+                        float b = hash(i + vec2(1.0, 0.0));
+                        float c = hash(i + vec2(0.0, 1.0));
+                        float d = hash(i + vec2(1.0, 1.0));
+                        vec2 u = f * f * (3.0 - 2.0 * f);
+                        return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+                    }
+
+                    float fbm(vec2 p) {
+                        float v = 0.0;
+                        float a = 0.5;
+                        mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+                        for (int i = 0; i < 6; ++i) {
+                            v += a * noise(p);
+                            p = rot * p * 2.0;
+                            a *= 0.5;
+                        }
+                        return v;
+                    }
+
+                    void main() {
+                        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                        vec2 p = uv * 2.0 - 1.0;
+                        p.x *= u_resolution.x / u_resolution.y;
+
+                        // Normalize dynamic mouse coordinates
+                        vec2 m = u_mouse / u_resolution.xy;
+                        m = m * 2.0 - 1.0;
+                        m.x *= u_resolution.x / u_resolution.y;
+
+                        float t = u_time * 0.12; 
+
+                        // Mouse interaction physics (Liquid surface push)
+                        float mouseDist = length(p - m);
+                        float push = exp(-mouseDist * 5.0) * 0.35; // Soft organic ripple around cursor
+                        
+                        // Push the liquid coordinates away from the mouse
+                        vec2 p_distorted = p - normalize(p - m + 0.0001) * push;
+
+                        // Fluid distortion math using the distorted coordinates
+                        vec2 d1 = vec2(fbm(p_distorted * 1.5 + t * 0.5), fbm(p_distorted * 1.2 - t * 0.4));
+                        vec2 d2 = vec2(fbm(p_distorted * 2.0 + d1 * 1.2 + t * 0.6), fbm(p_distorted * 2.2 + d1 * 1.5 - t * 0.5));
+                        float surface = fbm(p_distorted * 1.5 + d2 * 1.5);
+
+                        // Calculate normals for fake 3D depth and glass refraction
+                        float eps = 0.015;
+                        float nx = fbm((p_distorted + vec2(eps, 0.0)) * 1.5 + d2 * 1.5) - surface;
+                        float ny = fbm((p_distorted + vec2(0.0, eps)) * 1.5 + d2 * 1.5) - surface;
+                        
+                        // Bend normals aggressively near the mouse to create a caustic lens/indent effect
+                        nx -= (p.x - m.x) * push * 3.0;
+                        ny -= (p.y - m.y) * push * 3.0;
+                        
+                        vec3 normal = normalize(vec3(nx, ny, 0.04)); 
+
+                        // Lighting environment
+                        vec3 lightDir = normalize(vec3(-0.8, 1.2, 0.8));
+                        vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                        vec3 halfDir = normalize(lightDir + viewDir);
+                        
+                        // Lighting calculations
+                        float diffuse = max(dot(normal, lightDir), 0.0);
+                        float specular = pow(max(dot(normal, halfDir), 0.0), 35.0); 
+                        float rim = 1.0 - max(dot(normal, viewDir), 0.0);
+                        rim = smoothstep(0.7, 1.0, rim);
+
+                        // Dynamic mouse highlight (glow that tracks the cursor specifically)
+                        vec3 mouseLightDir = normalize(vec3(m.x - p.x, m.y - p.y, 0.5));
+                        float mouseSpecular = pow(max(dot(normal, normalize(mouseLightDir + viewDir)), 0.0), 15.0);
+
+                        // Base gradient map blending the current themes
+                        vec3 color = mix(u_baseColor, u_waveColor, smoothstep(0.2, 0.8, surface + diffuse * 0.4));
+                        
+                        // Fake Chromatic Refraction 
+                        color += vec3(normal.x * 0.15, normal.y * 0.15, -normal.x * 0.15) * 0.6;
+                        
+                        // Add bright specular glass reflections and glowing rim caustics
+                        color += vec3(1.0, 1.0, 1.0) * specular * 1.5; 
+                        color += u_waveColor * rim * 1.0; 
+                        
+                        // Blend the specific mouse glow highlight
+                        color += u_waveColor * mouseSpecular * push * 4.0;
+
+                        gl_FragColor = vec4(color, 1.0);
+                    }
+                `;
+
+                const compileShader = (type, source) => {
+                    const shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    return shader;
+                };
+
+                const program = gl.createProgram();
+                gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vsSource));
+                gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fsSource));
+                gl.linkProgram(program);
+                gl.useProgram(program);
+
+                const buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+
+                const posLocation = gl.getAttribLocation(program, "position");
+                gl.enableVertexAttribArray(posLocation);
+                gl.vertexAttribPointer(posLocation, 2, gl.FLOAT, false, 0, 0);
+
+                const uTime = gl.getUniformLocation(program, "u_time");
+                const uRes = gl.getUniformLocation(program, "u_resolution");
+                const uMouse = gl.getUniformLocation(program, "u_mouse");
+                const uBaseColor = gl.getUniformLocation(program, "u_baseColor");
+                const uWaveColor = gl.getUniformLocation(program, "u_waveColor");
+
+                const hexToVec3 = (hex) => {
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255] : [0, 0, 0];
+                };
+
+                let animationId;
+                let startTime = performance.now();
+
+                const render = (now) => {
+                    // Smooth, heavy mouse interpolation (lerping 8% towards target frame-by-frame)
+                    currentMouse.x += (targetMouse.x - currentMouse.x) * 0.08;
+                    currentMouse.y += (targetMouse.y - currentMouse.y) * 0.08;
+
+                    gl.uniform1f(uTime, (now - startTime) * (isRing ? 0.0018 : 0.001));
+                    gl.uniform2f(uRes, canvas.width, canvas.height);
+                    gl.uniform2f(uMouse, currentMouse.x, currentMouse.y);
+                    
+                    if (isRing) {
+                        // Vibrant, solid fluid for the timer ring (less transparent/glassy)
+                        const bgVec = hexToVec3(theme.primary);
+                        gl.uniform3fv(uBaseColor, [bgVec[0] * 0.5, bgVec[1] * 0.5, bgVec[2] * 0.5]); // Darker base for deep depth
+                        gl.uniform3fv(uWaveColor, bgVec); // Use primary color for waves instead of pure white
+                    } else {
+                        // Deep, dark fluid for the background
+                        const bgVec = hexToVec3(theme.bgMain);
+                        gl.uniform3fv(uBaseColor, [bgVec[0] * 0.9, bgVec[1] * 0.9, bgVec[2] * 0.9]);
+                        gl.uniform3fv(uWaveColor, hexToVec3(theme.primary));
+                    }
+
+                    gl.drawArrays(gl.TRIANGLES, 0, 6);
+                    animationId = requestAnimationFrame(render);
+                };
+
+                render(performance.now());
 
                 return () => {
                     window.removeEventListener('resize', resize);
                     window.removeEventListener('mousemove', handleMouseMove);
-                    window.removeEventListener('mouseleave', handleMouseLeave);
-                    cancelAnimationFrame(animationFrameId);
+                    window.removeEventListener('touchmove', handleTouchMove);
+                    cancelAnimationFrame(animationId);
                 };
-            }, [themeRgb.r, themeRgb.g, themeRgb.b]);
+            }, [theme.bgMain, theme.primary, isRing]);
 
             return (
                 <canvas 
                     ref={canvasRef} 
-                    className="fixed inset-0 pointer-events-none transition-colors duration-1000 ease-in-out" 
-                    style={{ zIndex: 0, backgroundColor: theme.bgMain }}
+                    className={isRing ? "absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out pointer-events-none" : "fixed inset-0 pointer-events-none transition-opacity duration-1000 ease-in-out"} 
+                    style={isRing ? { zIndex: 0, opacity: 1 } : { zIndex: 0, width: '100vw', height: '100vh', opacity: 0.95 }}
                 />
             );
         };
@@ -214,21 +425,23 @@
             const [activeThemeId, setActiveThemeId] = useState('peach');
             const [activeMode, setActiveMode] = useState('pomodoro');
             const [isActive, setIsActive] = useState(false);
-            const [currentView, setCurrentView] = useState('timer');
+            const [isRinging, setIsRinging] = useState(false);
+            const [currentView, setCurrentView] = useState('timer'); // timer, stats, settings
             const [cycleCount, setCycleCount] = useState(0); 
             const [showClearConfirm, setShowClearConfirm] = useState(false);
+            const [previewId, setPreviewId] = useState(null);
             
+            // Load state from local storage
             const [sessions, setSessions] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('cozyPomodoroSessions');
-                    return saved ? JSON.parse(saved) : [];
-                } catch (e) {
-                    return [];
-                }
+                try { return JSON.parse(localStorage.getItem('cozyPomodoroSessions')) || []; } catch (e) { return []; }
+            });
+            const [alarmSound, setAlarmSound] = useState(() => {
+                try { return localStorage.getItem('cozyPomodoroAlarm') || 'cozy'; } catch (e) { return 'cozy'; }
             });
 
             const [durations, setDurations] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 });
             const [timeLeft, setTimeLeft] = useState(durations.pomodoro * 60);
+            
             const [isEditing, setIsEditing] = useState(false);
             const [editHours, setEditHours] = useState('');
             const [editMins, setEditMins] = useState('');
@@ -238,22 +451,38 @@
             const currentModeInfo = MODES_CONFIG[activeMode];
             const currentTotalSeconds = durations[activeMode] * 60;
 
+            useEffect(() => { localStorage.setItem('cozyPomodoroSessions', JSON.stringify(sessions)); }, [sessions]);
+            useEffect(() => { localStorage.setItem('cozyPomodoroAlarm', alarmSound); }, [alarmSound]);
+
+            // Ensure audio stops if we change away from ringing view un-naturally
             useEffect(() => {
-                localStorage.setItem('cozyPomodoroSessions', JSON.stringify(sessions));
-            }, [sessions]);
+                return () => AudioEngine.stop();
+            }, []);
 
             const switchMode = useCallback((modeId) => {
                 setActiveMode(modeId);
                 setIsActive(false);
+                setIsRinging(false);
+                AudioEngine.stop();
                 setTimeLeft(durations[modeId] * 60);
                 setIsEditing(false);
             }, [durations]);
 
-            const handleTimerComplete = useCallback(() => {
-                playCozyChime();
+            const triggerAlarm = useCallback(() => {
+                setIsActive(false);
+                setIsRinging(true);
+                AudioEngine.start(alarmSound);
+            }, [alarmSound]);
+
+            const handleStopAlarm = () => {
+                AudioEngine.stop();
+                setIsRinging(false);
+                
+                // Record completed session
                 const newSession = { id: Date.now().toString(), modeId: activeMode, duration: durations[activeMode], timestamp: Date.now() };
                 setSessions(prev => [newSession, ...prev]);
                 
+                // Cycle logic
                 if (activeMode === 'pomodoro') {
                     const newCycleCount = cycleCount + 1;
                     if (newCycleCount >= 4) {
@@ -269,32 +498,35 @@
                 } else if (activeMode === 'shortBreak') {
                     switchMode('pomodoro');
                 }
-            }, [activeMode, cycleCount, switchMode, durations]);
+            };
 
             useEffect(() => {
                 let interval = null;
                 if (isActive && timeLeft > 0) {
                     interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
                 } else if (isActive && timeLeft === 0) {
-                    handleTimerComplete();
+                    triggerAlarm();
                 }
                 return () => clearInterval(interval);
-            }, [isActive, timeLeft, handleTimerComplete]);
+            }, [isActive, timeLeft, triggerAlarm]);
 
             useEffect(() => {
-                if (!isEditing && currentView === 'timer') {
+                if (isRinging) {
+                    document.title = `🔔 ALARM - ${currentModeInfo.name}`;
+                } else if (!isEditing && currentView === 'timer') {
                     const h = Math.floor(timeLeft / 3600);
                     const m = Math.floor((timeLeft % 3600) / 60).toString().padStart(2, '0');
                     const s = (timeLeft % 60).toString().padStart(2, '0');
                     const timeString = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
-                    document.title = isActive ? `${timeString} - ${currentModeInfo.name}` : 'Cozy Pomodoro';
+                    document.title = isActive ? `${timeString} - ${currentModeInfo.name}` : 'Pomozy';
                 } else {
-                    document.title = 'Cozy Pomodoro';
+                    document.title = 'Pomozy';
                 }
-            }, [timeLeft, isActive, currentModeInfo.name, isEditing, currentView]);
+            }, [timeLeft, isActive, isRinging, currentModeInfo.name, isEditing, currentView]);
 
             const toggleTimer = () => {
                 if (isEditing) handleEditSubmit(); 
+                AudioEngine.init(); // Requires user interaction to unlock audio
                 setIsActive(!isActive);
             };
 
@@ -305,6 +537,7 @@
             };
 
             const handleTimeClick = () => {
+                if(isRinging) return;
                 setIsActive(false);
                 const currentMins = durations[activeMode];
                 setEditHours(Math.floor(currentMins / 60).toString());
@@ -316,8 +549,7 @@
             const handleEditSubmit = () => {
                 let h = parseInt(editHours, 10);
                 let m = parseInt(editMins, 10);
-                if (isNaN(h)) h = 0;
-                if (isNaN(m)) m = 0;
+                if (isNaN(h)) h = 0; if (isNaN(m)) m = 0;
                 let totalNewMins = (h * 60) + m;
                 if (totalNewMins < 1) totalNewMins = 1; 
                 if (totalNewMins > 600) totalNewMins = 600; 
@@ -325,6 +557,25 @@
                 setDurations(newDurations);
                 setTimeLeft(totalNewMins * 60);
                 setIsEditing(false);
+            };
+
+            const togglePreview = (id) => {
+                if (previewId === id) {
+                    AudioEngine.stop();
+                    setPreviewId(null);
+                } else {
+                    setAlarmSound(id);
+                    AudioEngine.start(id);
+                    setPreviewId(id);
+                }
+            };
+
+            const handleViewChange = (view) => {
+                if(previewId) {
+                    AudioEngine.stop();
+                    setPreviewId(null);
+                }
+                setCurrentView(view);
             };
 
             const formatTimeDisplay = (seconds) => {
@@ -339,15 +590,10 @@
                 return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             };
 
-            const clearStats = () => {
-                setSessions([]);
-                setShowClearConfirm(false);
-            };
-
             const ringRadius = 140;
             const ringCircumference = 2 * Math.PI * ringRadius;
             const progress = 1 - (timeLeft / currentTotalSeconds);
-            const strokeDashoffset = progress * ringCircumference;
+            const strokeDashoffset = isRinging ? 0 : progress * ringCircumference;
             const totalFocusMinutes = sessions.filter(s => s.modeId === 'pomodoro').reduce((acc, curr) => acc + curr.duration, 0);
             const totalFocusHours = Math.floor(totalFocusMinutes / 60);
             const remainingFocusMins = totalFocusMinutes % 60;
@@ -357,46 +603,105 @@
                     <style>{`
                         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
                         :root { font-family: 'Nunito', sans-serif; }
-                        @keyframes cozyBreathe {
-                            0% { transform: scale(1); filter: drop-shadow(0 0 10px var(--theme-shadow)); }
-                            50% { transform: scale(1.02); filter: drop-shadow(0 0 25px var(--theme-shadow)); }
-                            100% { transform: scale(1); filter: drop-shadow(0 0 10px var(--theme-shadow)); }
+                        
+                        /* Massive, noticeable levitation */
+                        @keyframes float {
+                            0%, 100% { transform: translateY(0px) rotate(0deg); }
+                            50% { transform: translateY(-20px) rotate(1.5deg); }
                         }
-                        .animate-breathe-ring { animation: cozyBreathe 4s ease-in-out infinite; }
-                        .cozy-shadow { box-shadow: 0 20px 40px -15px var(--theme-shadow); }
-                        .cozy-shadow-inner { box-shadow: inset 0 2px 10px rgba(0,0,0,0.05); }
+                        .animate-float { animation: float 6s ease-in-out infinite; }
+
+                        /* Huge pulsing effect for active ring */
+                        @keyframes superBreathe {
+                            0% { transform: scale(1); filter: drop-shadow(0 0 15px var(--theme-shadow)); }
+                            50% { transform: scale(1.06); filter: drop-shadow(0 0 45px var(--theme-shadow)); }
+                            100% { transform: scale(1); filter: drop-shadow(0 0 15px var(--theme-shadow)); }
+                        }
+                        .animate-breathe-ring { animation: superBreathe 3s ease-in-out infinite; }
+
+                        /* Bouncy spring physics for all view changes */
+                        @keyframes rubberBandPop {
+                            0% { opacity: 0; transform: scale(0.7) translateY(20px); }
+                            60% { opacity: 1; transform: scale(1.05) translateY(-5px); }
+                            100% { opacity: 1; transform: scale(1) translateY(0); }
+                        }
+                        .animate-in { animation: rubberBandPop 0.5s cubic-bezier(0.68, -0.55, 0.26, 1.55) forwards; }
+
+                        .cozy-shadow { box-shadow: 0 25px 50px -12px var(--theme-shadow); }
+                        .cozy-shadow-inner { box-shadow: inset 0 4px 15px rgba(0,0,0,0.06); }
                         circle { transition: stroke-dashoffset 1s linear, stroke 0.5s ease; }
+                        
                         input[type="number"]::-webkit-inner-spin-button, 
                         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
                         input[type="number"] { -moz-appearance: textfield; }
+                        
                         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--theme-text-light); border-radius: 10px; opacity: 0.5; }
-                        .animate-in { animation: fadeIn 0.3s ease-out; }
+                        
+                        /* Playful hover interactions */
+                        .bouncy-hover { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+                        .bouncy-hover:hover { transform: scale(1.15) rotate(-3deg); }
+                        
+                        /* Fun Wavy Title Animation */
+                        @keyframes wavyText {
+                            0%, 100% { transform: translateY(0) rotate(0deg); }
+                            25% { transform: translateY(-4px) rotate(-4deg); }
+                            75% { transform: translateY(2px) rotate(4deg); }
+                        }
+                        .fun-letter { 
+                            display: inline-block; 
+                            animation: wavyText 3.5s ease-in-out infinite; 
+                            text-shadow: 2px 2px 0px rgba(0,0,0,0.06);
+                        }
+                        /* Stagger the animation delays so it looks like a wave */
+                        .fun-letter:nth-child(1) { animation-delay: 0.0s; }
+                        .fun-letter:nth-child(2) { animation-delay: 0.1s; }
+                        .fun-letter:nth-child(3) { animation-delay: 0.2s; }
+                        .fun-letter:nth-child(4) { animation-delay: 0.3s; }
+                        .fun-letter:nth-child(5) { animation-delay: 0.4s; }
+                        .fun-letter:nth-child(6) { animation-delay: 0.5s; }
+                        
+                        /* Continuous pulsing animation for the Stop Alarm button */
+                        @keyframes pulse-alarm {
+                            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4); }
+                            70% { transform: scale(1.1); box-shadow: 0 0 0 25px rgba(255, 0, 0, 0); }
+                            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+                        }
                         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
                     `}</style>
 
-                    <ParticleNetwork theme={theme} />
+                    <LiquidBackground theme={theme} />
 
                     <div 
                         className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 transition-colors duration-1000 ease-in-out relative z-10"
                         style={{ backgroundColor: 'transparent', color: theme.textDark, '--theme-shadow': theme.shadow, '--theme-text-light': theme.textLight }}
                     >
                         <div 
-                            className="relative bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-lg transition-all duration-700 ease-in-out cozy-shadow flex flex-col items-center min-h-[680px]"
+                            className="relative bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-lg transition-all duration-700 ease-in-out cozy-shadow flex flex-col items-center min-h-[680px] animate-float"
                             style={{ backgroundColor: theme.bgCard }}
                         >
                             <div className="w-full flex justify-between items-center mb-6">
-                                <h1 className="text-2xl font-black tracking-tight opacity-90 mx-auto">
-                                    {currentView === 'timer' ? 'Cozy Flow' : 'Your Journey'}
-                               </h1>
+                                <h1 className="text-3xl font-black tracking-tighter opacity-90 mx-auto flex items-center justify-center">
+                                    {currentView === 'timer' ? (
+                                        <div className="flex gap-[1px] hover:scale-105 transition-transform cursor-default" title="Pomozy!">
+                                            <span className="fun-letter" style={{ color: theme.primary }}>P</span>
+                                            <span className="fun-letter" style={{ color: theme.textDark }}>o</span>
+                                            <span className="fun-letter" style={{ color: theme.primary }}>m</span>
+                                            <span className="fun-letter" style={{ color: theme.textDark }}>o</span>
+                                            <span className="fun-letter" style={{ color: theme.primary }}>z</span>
+                                            <span className="fun-letter" style={{ color: theme.textDark }}>y</span>
+                                        </div>
+                                    ) : currentView === 'stats' ? 'Your Journey' : 'Settings'}
+                                </h1>
                             </div>
                                 
-                            <div className="flex-1 w-full flex flex-col items-center">
+                            <div className="flex-1 w-full flex flex-col items-center w-full">
                                 
+                                {/* ---------------- TIMER VIEW ---------------- */}
                                 {currentView === 'timer' && (
                                     <div className="flex flex-col items-center w-full animate-in">
-                                        <div className="flex bg-black/5 p-1.5 rounded-full cozy-shadow-inner mb-6 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                                        <div className="flex bg-black/5 p-1.5 rounded-full cozy-shadow-inner mb-6 w-full sm:w-auto overflow-x-auto custom-scrollbar">
                                             {Object.values(MODES_CONFIG).map((mode) => {
                                                 const isSelected = activeMode === mode.id;
                                                 return (
@@ -429,15 +734,50 @@
                                             ))}
                                         </div>
 
+                                        {/* Big Ring */}
                                         <div className="relative flex justify-center items-center mb-10 w-[280px] h-[280px] sm:w-[320px] sm:h-[320px]">
-                                            <svg className={`absolute inset-0 w-full h-full -rotate-90 ${isActive ? 'animate-breathe-ring' : ''}`} viewBox="0 0 320 320">
+                                            {/* SVG Mask Definition */}
+                                            <svg width="0" height="0" className="absolute pointer-events-none">
+                                                <defs>
+                                                    <mask id="fluidRingMask">
+                                                        <g transform="rotate(-90 160 160)">
+                                                            <circle cx="160" cy="160" r={ringRadius} fill="none" stroke="white" strokeWidth="16" strokeLinecap="round" strokeDasharray={ringCircumference} strokeDashoffset={strokeDashoffset} style={{ transition: isRinging ? 'none' : 'stroke-dashoffset 1s linear' }} />
+                                                        </g>
+                                                    </mask>
+                                                </defs>
+                                            </svg>
+
+                                            {/* Background Track (Dimmed) */}
+                                            <svg className="absolute inset-0 w-full h-full pointer-events-none -rotate-90" viewBox="0 0 320 320">
                                                 <circle cx="160" cy="160" r={ringRadius} fill="none" stroke={theme.ringBg} strokeWidth="12" strokeLinecap="round" />
-                                                <circle cx="160" cy="160" r={ringRadius} fill="none" stroke={theme.primary} strokeWidth="12" strokeLinecap="round" strokeDasharray={ringCircumference} strokeDashoffset={strokeDashoffset} />
                                             </svg>
                                             
-                                            <div className="absolute flex flex-col items-center justify-center z-10 w-full" style={{ color: theme.textDark }}>
-                                                {isEditing ? (
-                                                    <div className="flex flex-col items-center justify-center gap-4 animate-in">
+                                            {/* Liquid Progress Ring */}
+                                            <div 
+                                                className={`absolute inset-0 w-full h-full rounded-full overflow-hidden ${isActive ? 'animate-breathe-ring' : ''}`}
+                                                style={{
+                                                    mask: 'url(#fluidRingMask)',
+                                                    WebkitMask: 'url(#fluidRingMask)',
+                                                    filter: `drop-shadow(0 0 15px ${theme.shadow})`
+                                                }}
+                                            >
+                                                <LiquidBackground theme={theme} isRing={true} />
+                                            </div>
+                                            
+                                            <div className="absolute flex flex-col items-center justify-center z-10 w-full pointer-events-none" style={{ color: theme.textDark }}>
+                                                {isRinging ? (
+                                                    <div className="flex flex-col items-center justify-center animate-in pointer-events-auto">
+                                                        <button 
+                                                            onClick={handleStopAlarm}
+                                                            className="w-32 h-32 rounded-full flex flex-col items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform animate-pulse-alarm cursor-pointer"
+                                                            style={{ backgroundColor: theme.primary }}
+                                                        >
+                                                            <Icon name="bell" size={32} className="mb-1" strokeWidth={2.5}/>
+                                                            <span className="font-black tracking-widest text-lg">STOP</span>
+                                                        </button>
+                                                    </div>
+                                                ) : isEditing ? (
+                                                    <div className="flex flex-col items-center justify-center gap-4 animate-in pointer-events-auto">
                                                         <div className="flex items-center justify-center gap-1 sm:gap-2">
                                                             <div className="flex items-baseline">
                                                                 <input ref={hoursInputRef} type="number" min="0" max="10" value={editHours} onChange={(e) => setEditHours(e.target.value)} className="w-16 sm:w-20 text-center bg-transparent outline-none text-5xl sm:text-6xl font-black tracking-tighter tabular-nums leading-none border-b-4 border-dashed" style={{ borderColor: theme.primary }} placeholder="0" />
@@ -449,17 +789,17 @@
                                                                 <span className="text-xl font-bold ml-1 opacity-50">m</span>
                                                             </div>
                                                         </div>
-                                                        <button onClick={handleEditSubmit} className="flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-bold text-sm shadow-md hover:scale-105 active:scale-95 transition-transform" style={{ backgroundColor: theme.primary }}>
+                                                        <button onClick={handleEditSubmit} className="flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-bold text-sm shadow-md hover:scale-110 active:scale-95 transition-transform" style={{ backgroundColor: theme.primary }}>
                                                             <Icon name="save" size={16} /> Save Time
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <button onClick={handleTimeClick} className={`font-black tracking-tighter tabular-nums leading-none hover:scale-105 transition-transform duration-200 cursor-pointer focus:outline-none rounded-xl hover:bg-black/5 p-2 ${timeLeft >= 3600 ? 'text-5xl sm:text-6xl' : 'text-6xl sm:text-7xl'}`}>
+                                                    <button onClick={handleTimeClick} className={`bouncy-hover font-black tracking-tighter tabular-nums leading-none cursor-pointer focus:outline-none rounded-xl hover:bg-black/5 p-2 pointer-events-auto ${timeLeft >= 3600 ? 'text-5xl sm:text-6xl' : 'text-6xl sm:text-7xl'}`}>
                                                         {formatTimeDisplay(timeLeft)}
                                                     </button>
                                                 )}
                                                 
-                                                {!isEditing && (
+                                                {!isEditing && !isRinging && (
                                                     <div className="mt-3 text-sm font-bold uppercase tracking-widest opacity-60 flex items-center gap-2">
                                                         {currentModeInfo.name}
                                                     </div>
@@ -467,7 +807,8 @@
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-center space-x-6 w-full mb-6">
+                                        {/* Play/Pause Controls */}
+                                        <div className={`flex items-center justify-center space-x-6 w-full mb-6 transition-opacity ${isRinging ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                                             <div className="w-14 sm:w-16"></div>
                                             <button onClick={toggleTimer} className="group relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none" style={{ backgroundColor: theme.primary, color: theme.bgCard, boxShadow: `0 15px 30px -10px ${theme.shadow}` }}>
                                                 <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-15 transition-opacity"></div>
@@ -480,12 +821,13 @@
 
                                         <div className="mt-2 h-6 flex items-center" style={{ color: theme.textLight }}>
                                             <p className="font-bold text-sm tracking-widest uppercase">
-                                                {isEditing ? "Set your duration" : (isActive ? (activeMode === 'pomodoro' ? "Deep focus..." : "Relaxing...") : "Ready when you are.")}
+                                                {isEditing ? "Set your duration" : isRinging ? "Time's up!" : (isActive ? (activeMode === 'pomodoro' ? "Deep focus..." : "Relaxing...") : "Ready when you are.")}
                                             </p>
                                         </div>
                                     </div>
                                 )}
 
+                                {/* ---------------- STATS VIEW ---------------- */}
                                 {currentView === 'stats' && (
                                     <div className="flex flex-col items-center w-full h-full animate-in">
                                         <div className="w-full p-6 rounded-[2rem] mb-6 flex flex-col items-center justify-center text-center cozy-shadow-inner" style={{ backgroundColor: theme.ringBg }}>
@@ -512,7 +854,7 @@
                                             )}
                                         </div>
 
-                                        <div className="w-full flex-1 min-h-[300px] max-h-[350px] overflow-y-auto custom-scrollbar pr-2 pb-4 space-y-3">
+                                        <div className="w-full flex-1 min-h-[250px] max-h-[300px] overflow-y-auto custom-scrollbar pr-2 pb-4 space-y-3">
                                             {sessions.length === 0 ? (
                                                 <div className="w-full h-full flex flex-col items-center justify-center opacity-40 mt-10">
                                                     <Icon name="calendar" size={48} className="mb-4" />
@@ -544,11 +886,65 @@
                                         </div>
                                     </div>
                                 )}
+
+                                {/* ---------------- SETTINGS VIEW ---------------- */}
+                                {currentView === 'settings' && (
+                                    <div className="flex flex-col items-start w-full h-full animate-in">
+                                        <div className="w-full mb-6">
+                                            <h3 className="font-bold text-lg mb-4 px-2">Alarm Ringtone</h3>
+                                            <div className="w-full flex flex-col gap-3">
+                                                {ALARM_TYPES.map(alarm => (
+                                                    <div 
+                                                        key={alarm.id}
+                                                        onClick={() => { setAlarmSound(alarm.id); if(previewId) togglePreview(alarm.id); }}
+                                                        className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${alarmSound === alarm.id ? 'bg-white shadow-sm scale-[1.02]' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+                                                        style={{ borderColor: alarmSound === alarm.id ? theme.primary : 'transparent' }}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div 
+                                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors`}
+                                                                style={{ borderColor: theme.primary, backgroundColor: alarmSound === alarm.id ? theme.primary : 'transparent' }}
+                                                            >
+                                                                {alarmSound === alarm.id && <div className="w-2 h-2 bg-white rounded-full" />}
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-base">{alarm.name}</span>
+                                                                <span className="text-xs opacity-60 font-semibold">{alarm.desc}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Preview Button inside row */}
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); togglePreview(alarm.id); }}
+                                                            className={`p-2.5 rounded-full flex items-center justify-center transition-colors shadow-sm ${previewId === alarm.id ? 'text-white' : 'bg-white hover:scale-110'}`}
+                                                            style={{ backgroundColor: previewId === alarm.id ? theme.primary : '#fff', color: previewId === alarm.id ? '#fff' : theme.primary }}
+                                                            title="Preview ringtone"
+                                                        >
+                                                            {previewId === alarm.id ? <Icon name="stopSquare" fill="currentColor" size={16} /> : <Icon name="play" fill="currentColor" size={16} className="ml-0.5" />}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full mt-auto p-4 rounded-2xl bg-black/5 flex items-center gap-4">
+                                            <div className="p-3 bg-white rounded-full" style={{ color: theme.primary }}>
+                                                <Icon name="bell" size={24} />
+                                            </div>
+                                            <p className="text-sm font-semibold opacity-70 leading-snug">
+                                                Alarms will ring continuously until stopped. Click the play button to preview.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
+                            {/* Bottom Navigation & Controls */}
                             <div className="w-full mt-auto pt-6 border-t-2 border-black/5 flex flex-col items-center gap-4">
+                                
+                                {/* Theme Switcher (Only visible in Timer view) */}
                                 {currentView === 'timer' && (
-                                    <div className="flex gap-3 p-2 bg-black/5 rounded-full cozy-shadow-inner mb-2">
+                                    <div className="flex gap-3 p-2 bg-black/5 rounded-full cozy-shadow-inner mb-2 transition-opacity">
                                         {Object.values(THEMES).map(t => (
                                             <button
                                                 key={t.id}
@@ -563,13 +959,21 @@
                                     </div>
                                 )}
 
-                                <div className="flex bg-black/5 rounded-full p-1 w-full max-w-[200px] justify-between relative cozy-shadow-inner">
-                                    <div className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-full transition-all duration-300 shadow-sm" style={{ left: currentView === 'timer' ? '4px' : 'calc(50%)' }}></div>
-                                    <button onClick={() => setCurrentView('timer')} className={`relative z-10 w-1/2 py-2 flex justify-center items-center gap-2 font-bold text-sm transition-colors duration-300 ${currentView === 'timer' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'timer' ? theme.primary : theme.textDark }}>
-                                        <Icon name="timerIcon" size={18} /> <span className="hidden sm:inline">Timer</span>
+                                {/* Main Tab Navigation */}
+                                <div className="flex bg-black/5 rounded-full p-1 w-full max-w-[280px] justify-between relative cozy-shadow-inner">
+                                    <div 
+                                        className="absolute inset-y-1 w-[calc(33.33%-2px)] bg-white rounded-full transition-all duration-300 shadow-sm" 
+                                        style={{ left: currentView === 'timer' ? '4px' : currentView === 'stats' ? 'calc(33.33% + 1px)' : 'calc(66.66% - 2px)' }} 
+                                    />
+                                    
+                                    <button onClick={() => handleViewChange('timer')} className={`relative z-10 w-1/3 py-2 flex justify-center items-center font-bold text-sm transition-colors duration-300 ${currentView === 'timer' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'timer' ? theme.primary : theme.textDark }} title="Timer">
+                                        <Icon name="timerIcon" size={18} />
                                     </button>
-                                    <button onClick={() => setCurrentView('stats')} className={`relative z-10 w-1/2 py-2 flex justify-center items-center gap-2 font-bold text-sm transition-colors duration-300 ${currentView === 'stats' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'stats' ? theme.primary : theme.textDark }}>
-                                        <Icon name="barChart2" size={18} /> <span className="hidden sm:inline">Stats</span>
+                                    <button onClick={() => handleViewChange('stats')} className={`relative z-10 w-1/3 py-2 flex justify-center items-center font-bold text-sm transition-colors duration-300 ${currentView === 'stats' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'stats' ? theme.primary : theme.textDark }} title="Statistics">
+                                        <Icon name="barChart2" size={18} />
+                                    </button>
+                                    <button onClick={() => handleViewChange('settings')} className={`relative z-10 w-1/3 py-2 flex justify-center items-center font-bold text-sm transition-colors duration-300 ${currentView === 'settings' ? '' : 'opacity-50 hover:opacity-100'}`} style={{ color: currentView === 'settings' ? theme.primary : theme.textDark }} title="Settings">
+                                        <Icon name="settings" size={18} />
                                     </button>
                                 </div>
                             </div>
